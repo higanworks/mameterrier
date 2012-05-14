@@ -2,16 +2,19 @@
 $:.unshift File.expand_path("../", __FILE__)
 $:.unshift File.expand_path("../lib", __FILE__)
 
-# require "bundler"
-# Bundler.setup
+require "bundler"
+Bundler.setup
 
 require "optparse"
 require "web_socket"
 require "monitor"
 require "logger"
 require "benchmark"
-require "web_socket_client"
+require "rev"
+
 require "core_ext"
+require "web_socket_client"
+require "comet_client"
 
 options = {}
 
@@ -26,11 +29,10 @@ opt.on("-d VAL", "--driver VAL")      { |driver| $driver = driver }
 opt.on("-f VAL", "--file VAL")        { |file| $file = file }
 
 # Set to default value
-$num ||= 1
+$num         ||= 1
 $concurrency ||= 1
-$url ||= "ws://localhost:8080"
-$driver ||= "websocket"
-
+$url         ||= "ws://localhost:8080"
+$driver      ||= "websocket"
 
 opt.parse(ARGV)
 
@@ -47,9 +49,9 @@ class Mameterrier
     when "websocket"
       @client_class = WebSocketClient
     when "comet"
-      # TODO
+      @client_class = CometClient
     else
-      $log.error "Unregocnized client #{client_name}."
+      throw "Unregocnized client #{client_name}."
     end
 
     yield self if block_given?
@@ -96,8 +98,8 @@ class Mameterrier
     $log.info "try to bloadcast bytesize: #{message.bytesize}"
 
     start = Time.now.to_f
-    
-    @clients.first.send(message)
+
+    @client_class.send(@url, message, @clients.first)
 
     $log.info "msg to #{@clients.size} clients. #{(Time.now.to_f - start).to_msec} ms"
   end
@@ -108,6 +110,7 @@ if ($file && File.file?($file))
 else
   mame = Mameterrier.new($driver, $url)
   mame.connect($num, $concurrency)
+  mame.bloadcast("a" * 10)
   mame.bloadcast("a" * 10)
   sleep 3
 end

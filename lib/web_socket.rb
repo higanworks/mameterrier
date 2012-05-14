@@ -103,7 +103,19 @@ class WebSocket
           "#{key3}")
         flush()
 
-        line = gets().chomp()
+
+        line = nil
+        count = 0
+        while !(line = gets())
+          if count > 5
+            puts "mazide!"
+            return
+          end
+          
+          count += 1
+        end
+        line = line.chomp
+        
         raise(WebSocket::Error, "bad response: #{line}") if !(line =~ /\AHTTP\/1.1 101 /n)
         read_header()
         if (@header["sec-websocket-origin"] || "").downcase() != origin.downcase()
