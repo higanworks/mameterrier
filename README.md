@@ -11,7 +11,7 @@ ruby ./mameterri.rb -n 100 -c 2 -u "ws://localhost:8080/jetty_websocket/ws/"
 comet
 
 ```
-ruby ./mameterri.rb -n 100 -c 2 -u "ws://localhost:8080/jetty_websocket/comet" -d comet
+ruby ./mameterri.rb -n 100 -c 2 -u "http://localhost:8080/jetty_websocket/comet" -d comet
 ```
 
 Scriptを渡す。
