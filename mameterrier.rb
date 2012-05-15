@@ -111,7 +111,6 @@ else
   mame = Mameterrier.new($driver, $url)
   mame.connect($num, $concurrency)
   mame.bloadcast("a" * 10)
-  mame.bloadcast("a" * 10)
   sleep 3
 end
 
