@@ -16,6 +16,8 @@ require "core_ext"
 require "web_socket_client"
 require "comet_client"
 
+$log = Logger.new(STDOUT)
+
 options = {}
 
 opt = OptionParser.new
@@ -27,6 +29,7 @@ opt.on("-n VAL", "--num VAL")         { |num| $num = num }
 opt.on("-u VAL", "--url VAL")         { |url| $url = url }
 opt.on("-d VAL", "--driver VAL")      { |driver| $driver = driver }
 opt.on("-f VAL", "--file VAL")        { |file| $file = file }
+opt.on("-v")                          { $log.level = Logger::DEBUG }
 
 # Set to default value
 $num         ||= 1
@@ -36,7 +39,6 @@ $driver      ||= "websocket"
 
 opt.parse(ARGV)
 
-$log = Logger.new(STDOUT)
 
 class Mameterrier
   # まめてりあ
@@ -113,6 +115,3 @@ else
   mame.bloadcast("a" * 10)
   sleep 3
 end
-
-
-

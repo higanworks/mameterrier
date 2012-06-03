@@ -1,4 +1,10 @@
 class TestHttp < Rev::HttpClient
+  class << self
+    def unconnected_request
+      @unconnected_request ||= []
+    end
+  end
+  
   def on_body_data(data)
   end
 
@@ -7,6 +13,7 @@ class TestHttp < Rev::HttpClient
   end
 
   def on_request_complete
+    self.class.unconnected_request.delete(self)
   end
 
   event_callback :on_request_complete
@@ -22,7 +29,14 @@ class CometClient
     def send(url, message, client=nil)
       uri = URI(url)
       m = TestHttp.connect(uri.host, uri.port)
-      m.request("POST", uri.path, body: URI.encode_www_form({ "message" => message }))
+      timer = Rev::TimerWatcher.new(2)
+      timer.on_timer {
+        m.request("POST", uri.path,
+          body: URI.encode_www_form({ "message" => message }),
+          head: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+          )
+      }
+      timer.attach(@@loop)
       m.attach(@@loop)
     end
   end
@@ -45,6 +59,7 @@ class CometClient
         timer = Rev::TimerWatcher.new(1)
         id = @id
         timer.on_timer {
+          TestHttp.unconnected_request << m
           m.request("GET", uri.path + "?user_id=#{id}")
         }
         m.attach(@@loop)
