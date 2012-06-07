@@ -85,8 +85,8 @@ class Mameterrier
   def send(clients=1, bytesize=50)
     $log.info "Send message bytesize: #{bytesize}"
 
-    message = "0" * bytesize
-    
+    message = Message.new(bytesize).to_s
+
     start = Time.now.to_f
     
     @client_class.send(@url, message, clients, @clients.first)
