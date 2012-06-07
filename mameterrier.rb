@@ -123,7 +123,12 @@ if ($interactive)
   mame = Mameterrier.new($driver, $url)
   print ">"
   while line = STDIN.gets
-    eval "mame.#{line}"
+    begin
+      eval "mame.#{line}"
+    rescue => e
+      print "#{e.message}\n"
+    end
+        
     print ">"
   end
 elsif ($file && File.file?($file))
