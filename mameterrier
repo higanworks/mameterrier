@@ -41,7 +41,7 @@ elsif ($file && File.file?($file))
 else
   mame = Mameterrier.new($driver, $url)
   mame.connect($num, $concurrency)
-  mame.bloadcast("a" * 10)
+  mame.bloadcast
   sleep 3
 end
 
