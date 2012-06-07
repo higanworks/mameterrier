@@ -1,89 +1,106 @@
-class TestHttp < Rev::HttpClient
-  class << self
-    def unconnected_request
-      @unconnected_request ||= []
-    end
-  end
+# -*- coding: utf-8 -*-
+require "net/http"
+require "uri"
+
+class CometIdGenerator
+  @@m = Monitor.new
   
-  def on_body_data(data)
+  def self.gen
+    ret = 0
+    @@m.synchronize do 
+      @indicator ||= 0
+      @indicator += 1
+      ret = @indicator.to_i
+    end
+    
+    ret
   end
-
-  def on_connect
-    super
-  end
-
-  def on_request_complete
-    self.class.unconnected_request.delete(self)
-  end
-
-  event_callback :on_request_complete
 end
 
+# =============== EventMachine ===================
+# Request => 次のRequestでeventがwaitする><
+# ================================================
+#
+require "eventmachine"
+require "em-http"
+
 class CometClient
-  @@loop = Rev::Loop.default
-  @@in_loop = false
-  @@mon = Monitor.new
-  @@id_indicator = 0
+  Thread.new { EventMachine.run }
+  @@connections = []
 
-  class << self
-    def send(url, message, client=nil)
-      uri = URI(url)
-      m = TestHttp.connect(uri.host, uri.port)
-      timer = Rev::TimerWatcher.new(2)
-      timer.on_timer {
-        m.request("POST", uri.path,
-          body: URI.encode_www_form({ "message" => message }),
-          head: { 'Content-Type' => 'application/x-www-form-urlencoded' }
-          )
-      }
-      timer.attach(@@loop)
-      m.attach(@@loop)
-    end
+  def self.send(url, message, clients, send_client=nil)
+    Net::HTTP.post_form(URI(url), { clin: clients, msg: message })
   end
-    
+
   def initialize(url)
-    @loop = true
-    
-    @id = 0
-    @@mon.synchronize do
-      @@id_indicator += 1
-      @id = @@id_indicator.to_i
-    end
+    @reconnect = true
+    @id = CometIdGenerator.gen
 
-    uri = URI(url)
-    
-    req = lambda {
-      if @loop
-        m = TestHttp.connect(uri.host, uri.port)
-
-        timer = Rev::TimerWatcher.new(1)
-        id = @id
-        timer.on_timer {
-          TestHttp.unconnected_request << m
-          m.request("GET", uri.path + "?user_id=#{id}")
+    on_complete = lambda {
+      if @reconnect
+        http = EM::HttpRequest.new(url, connect_timeout: 3600, inactivity_timeout: 3600).get(query: { user_id: @id })
+        http.callback {
+          timer = EM::Timer.new(1) {
+            on_complete.call
+            timer.cancel
+          }
         }
-        m.attach(@@loop)
-        timer.attach(@@loop)
-        m.on_request_complete &req
       end
     }
 
-    req.call
-
-    unless @@in_loop
-      @@in_loop = true
-      Thread.new { @@loop.run } 
-    end
-  end
-
-  def send(message)
+    on_complete.call
   end
 
   def close
-    @loop = false
-  end
-
-  def id
-    @id
+    @reconnect = false
   end
 end
+
+# =============== Celluloid ===================
+# class MySocket
+#   include Celluloid::IO
+
+#   CR = '0x0d'
+#   LF = '0x0a'
+
+#   def initialize(url)
+#     uri = URI(url)
+#     @scoket = TCPSocket.from_ruby_socket(::TPCSocket.new(uri.host, uri.port))
+
+#     header = ""
+#     header << "GET #{uri.path} HTTP/1.1 #{CRLF}"
+#     header << "Connection: close"
+#     @socket.write(header)
+#   end
+# end
+
+
+
+# =============== cool.io ===================
+# そもそもhttp_clientが使えない ;;
+# ===========================================
+# require "coolio"
+# 
+# class MyHttpClient < Coolio::HttpClient
+# end
+
+# class CometClient
+#   @@loop = Coolio::Loop.default
+#   @@runned = false
+
+#   def initialize(url)
+#     uri = URI(url)
+
+#     @reconnect = true
+#     @id = CometIdGenerator.gen
+#     c = MyHttpClient.connect(uri.host, uri.port).attach(@@loop)
+#     c.request('GET', uri.path, query: { user_id: @id })
+
+#     unless @@runned
+#       Thread.new { @@loop.run }
+#       @@runned = true
+#     end
+#   end
+# end
+
+

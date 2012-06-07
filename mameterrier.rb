@@ -17,6 +17,7 @@ require "web_socket_client"
 require "comet_client"
 
 $log = Logger.new(STDOUT)
+$log.level = Logger::INFO
 
 options = {}
 
@@ -24,12 +25,13 @@ opt = OptionParser.new
 opt.banner = "Usage: ruby test.rb [options]"
 
 opt.separator "optios:"
-opt.on("-c VAL", "--concurrency VAL") { |num| $concurrency = num }
-opt.on("-n VAL", "--num VAL")         { |num| $num = num }
-opt.on("-u VAL", "--url VAL")         { |url| $url = url }
-opt.on("-d VAL", "--driver VAL")      { |driver| $driver = driver }
-opt.on("-f VAL", "--file VAL")        { |file| $file = file }
-opt.on("-v")                          { $log.level = Logger::DEBUG }
+opt.on("-c VAL", "--concurrency VAL")                             { |num| $concurrency = num }
+opt.on("-n number of requests to perform", "--num VAL")           { |num| $num = num }
+opt.on("-u url", "--url VAL")                                     { |url| $url = url }
+opt.on("-d choose driver 'comet' or 'websocket'", "--driver VAL") { |driver| $driver = driver }
+opt.on("-f run with the script", "--file VAL")                    { |file| $file = file }
+opt.on("-i", "--interactive")                                     { |flg| $interactive = true }
+opt.on("-v")                                                      { $log.level = Logger::DEBUG }
 
 # Set to default value
 $num         ||= 1
@@ -39,6 +41,7 @@ $driver      ||= "websocket"
 
 opt.parse(ARGV)
 
+Thread.abort_on_exception = true
 
 class Mameterrier
   # まめてりあ
@@ -63,11 +66,9 @@ class Mameterrier
     @client_class.new(url)
   end
 
-  def connect(num, concurrency)
+  def connect(num, concurrency=1)
     close
 
-    concurrency ||= 1
-    
     start = Time.now.to_f
     
     $log.info "try to open #{num} connection. cuncurrency: #{concurrency}"
@@ -90,24 +91,42 @@ class Mameterrier
 
     $log.info "open #{@clients.size} connection. #{(Time.now.to_f - start).to_msec} ms"
   end
+  alias :c :connect
 
   def close
     @clients.map(&:close)
     @clients = []
   end
   
-  def bloadcast(message)
-    $log.info "try to bloadcast bytesize: #{message.bytesize}"
+  # Send message to clients from connected clients
+  def send(clients=1, bytesize=50)
+    $log.info "Send message bytesize: #{bytesize}"
 
+    message = "0" * bytesize
+    
     start = Time.now.to_f
-
-    @client_class.send(@url, message, @clients.first)
-
-    $log.info "msg to #{@clients.size} clients. #{(Time.now.to_f - start).to_msec} ms"
+    
+    @client_class.send(@url, message, clients, @clients.first)
+    
+    $log.info "msg to #{clients} clients. #{(Time.now.to_f - start).to_msec} ms"
   end
+  alias :s :send
+  
+  # Send message to all clients
+  def bloadcast(bytesize=50)
+    send(0, bytesize)
+  end
+  alias :b :bloadcast
 end
 
-if ($file && File.file?($file))
+if ($interactive)
+  mame = Mameterrier.new($driver, $url)
+  print ">"
+  while line = STDIN.gets
+    eval "mame.#{line}"
+    print ">"
+  end
+elsif ($file && File.file?($file))
   eval File.read($file)
 else
   mame = Mameterrier.new($driver, $url)

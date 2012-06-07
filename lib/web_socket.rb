@@ -15,9 +15,7 @@ require "stringio"
 
 class WebSocket
     class << self
-
         attr_accessor(:debug)
-
     end
 
     class Error < RuntimeError

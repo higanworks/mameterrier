@@ -3,13 +3,13 @@
 # 1336955068764000100000...
 class Message
   @@mon = Monitor.new
-  @@message_table = {}
+  @@message_table = []
 
   attr_accessor :send_time, :id, :message
 
   class << self
     def parse(message)
-      /(?<time>\d{13})(?<id>)\d{4}(?<padding>.*)/ =~ message
+      /(?<time>\d{13})(?<id>\d{4})(?<padding>.*)/ =~ message
       ins = self.new
       ins.send_time = time
       ins.id = id
@@ -25,11 +25,8 @@ class Message
   def next_id
     last_id = 0
     @@mon.synchronize do 
-      last_id = @@message_table.keys.sort{ |a, b| b <=> a }.first
-      last_id ||= 0
-      last_id += 1
-
-      @@message_table[last_id] = ""
+      last_id = @@message_table.size
+      @@message_table << ""
     end
 
     last_id
@@ -44,5 +41,7 @@ class Message
     @id = id
     
     @message += "0" * bytesize - message.bytesize
+    @@message_table[@id] = @message
+    @message
   end
 end
