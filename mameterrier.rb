@@ -15,31 +15,14 @@ require "rev"
 require "core_ext"
 require "web_socket_client"
 require "comet_client"
+require "message"
 
-$log = Logger.new(STDOUT)
-$log.level = Logger::INFO
-
-options = {}
-
-opt = OptionParser.new
-opt.banner = "Usage: ruby test.rb [options]"
-
-opt.separator "optios:"
-opt.on("-c VAL", "--concurrency VAL")                             { |num| $concurrency = num }
-opt.on("-n number of requests to perform", "--num VAL")           { |num| $num = num }
-opt.on("-u url", "--url VAL")                                     { |url| $url = url }
-opt.on("-d choose driver 'comet' or 'websocket'", "--driver VAL") { |driver| $driver = driver }
-opt.on("-f run with the script", "--file VAL")                    { |file| $file = file }
-opt.on("-i", "--interactive")                                     { |flg| $interactive = true }
-opt.on("-v")                                                      { $log.level = Logger::DEBUG }
-
-# Set to default value
+# 初期値設定
+$log         ||= Logger.new(STDOUT)
 $num         ||= 1
 $concurrency ||= 1
 $url         ||= "ws://localhost:8080"
 $driver      ||= "websocket"
-
-opt.parse(ARGV)
 
 Thread.abort_on_exception = true
 
@@ -117,25 +100,4 @@ class Mameterrier
     send(0, bytesize)
   end
   alias :b :bloadcast
-end
-
-if ($interactive)
-  mame = Mameterrier.new($driver, $url)
-  print ">"
-  while line = STDIN.gets
-    begin
-      eval "mame.#{line}"
-    rescue => e
-      print "#{e.message}\n"
-    end
-        
-    print ">"
-  end
-elsif ($file && File.file?($file))
-  eval File.read($file)
-else
-  mame = Mameterrier.new($driver, $url)
-  mame.connect($num, $concurrency)
-  mame.bloadcast("a" * 10)
-  sleep 3
 end

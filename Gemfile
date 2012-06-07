@@ -7,3 +7,5 @@ gem "cool.io"
 gem "libwebsocket"
 #gem "cool.io-http"
 #gem "celluloid-io"
+
+gem "rspec"

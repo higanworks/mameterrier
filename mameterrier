@@ -1,0 +1,47 @@
+#!/usr/bin/env ruby
+$:.unshift File.expand_path("../", __FILE__)
+
+require "mameterrier"
+
+$log = Logger.new(STDOUT)
+$log.level = Logger::INFO
+
+ARGV.options do |opt|
+  opt.banner = "Usage: ruby test.rb [options]"
+  opt.separator "optios:"
+  opt.on("-c VAL", "--concurrency VAL")                             { |num| $concurrency = num }
+  opt.on("-n number of requests to perform", "--num VAL")           { |num| $num = num }
+  opt.on("-u url", "--url VAL")                                     { |url| $url = url }
+  opt.on("-d choose driver 'comet' or 'websocket'", "--driver VAL") { |driver| $driver = driver }
+  opt.on("-f run with the script", "--file VAL")                    { |file| $file = file }
+  opt.on("-i", "--interactive")                                     { |flg| $interactive = true }
+  opt.on("-v")                                                      { $log.level = Logger::DEBUG }
+  opt.parse!
+end
+
+
+if ($interactive)
+  mame = Mameterrier.new($driver, $url)
+  print ">"
+  while line = STDIN.gets
+    begin
+      next if line.chop == ""
+      
+      method, args = line.split(" ", 2)
+      args = args.split(",").map(&:strip) if args
+      mame.__send__(method.to_sym, *args)
+    rescue => e
+      print "#{e.message}\n"
+    end
+        
+    print ">"
+  end
+elsif ($file && File.file?($file))
+  eval File.read($file)
+else
+  mame = Mameterrier.new($driver, $url)
+  mame.connect($num, $concurrency)
+  mame.bloadcast("a" * 10)
+  sleep 3
+end
+
