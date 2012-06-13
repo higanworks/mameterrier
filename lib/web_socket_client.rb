@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
-require "libwebsocket"
-#require "celluloid/io"
 require "cool.io"
-
 require "openssl"
 
 # 途中
