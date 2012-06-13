@@ -10,7 +10,6 @@ require "web_socket"
 require "monitor"
 require "logger"
 require "benchmark"
-require "rev"
 
 require "core_ext"
 require "web_socket_client"

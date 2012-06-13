@@ -32,6 +32,7 @@ if ($interactive)
       mame.__send__(method.to_sym, *args)
     rescue => e
       print "#{e.message}\n"
+      print "#{e.backtrace.join("\n")}"
     end
         
     print ">"

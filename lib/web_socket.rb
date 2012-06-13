@@ -101,6 +101,7 @@ class WebSocket
           "#{key3}")
         flush()
 
+        sleep
 
         line = nil
         count = 0
