@@ -21,40 +21,40 @@ end
 # Request => 次のRequestでeventがwaitする><
 # ================================================
 #
-require "eventmachine"
-require "em-http"
+# require "eventmachine"
+# require "em-http"
 
-class CometClient
-  Thread.new { EventMachine.run }
-  @@connections = []
+# class CometClient
+#   Thread.new { EventMachine.run }
+#   @@connections = []
 
-  def self.send(url, message, clients, send_client=nil)
-    Net::HTTP.post_form(URI(url), { clin: clients, msg: message })
-  end
+#   def self.send(url, message, clients, send_client=nil)
+#     Net::HTTP.post_form(URI(url), { clin: clients, msg: message })
+#   end
 
-  def initialize(url)
-    @reconnect = true
-    @id = CometIdGenerator.gen
+#   def initialize(url)
+#     @reconnect = true
+#     @id = CometIdGenerator.gen
 
-    on_complete = lambda {
-      if @reconnect
-        http = EM::HttpRequest.new(url, connect_timeout: 3600, inactivity_timeout: 3600).get(query: { user_id: @id })
-        http.callback {
-          timer = EM::Timer.new(1) {
-            on_complete.call
-            timer.cancel
-          }
-        }
-      end
-    }
+#     on_complete = lambda {
+#       if @reconnect
+#         http = EM::HttpRequest.new(url, connect_timeout: 3600, inactivity_timeout: 3600).get(query: { user_id: @id })
+#         http.callback {
+#           timer = EM::Timer.new(1) {
+#             on_complete.call
+#             timer.cancel
+#           }
+#         }
+#       end
+#     }
 
-    on_complete.call
-  end
+#     on_complete.call
+#   end
 
-  def close
-    @reconnect = false
-  end
-end
+#   def close
+#     @reconnect = false
+#   end
+# end
 
 # =============== Celluloid ===================
 # class MySocket
@@ -77,30 +77,61 @@ end
 
 
 # =============== cool.io ===================
-# そもそもhttp_clientが使えない ;;
+# そもそもhttp_clientが使えない ;; => ことなかった
 # ===========================================
-# require "coolio"
-# 
-# class MyHttpClient < Coolio::HttpClient
-# end
+require "coolio"
 
-# class CometClient
-#   @@loop = Coolio::Loop.default
-#   @@runned = false
+class MyHttpClient < Coolio::HttpClient
+  def initialize(socket, reconnect_proc)
+    super(socket)
+    @socket = socket
+    @reconnect_proc = reconnect_proc
+  end
 
-#   def initialize(url)
-#     uri = URI(url)
+  def on_body_data(data)
+  end
 
-#     @reconnect = true
-#     @id = CometIdGenerator.gen
-#     c = MyHttpClient.connect(uri.host, uri.port).attach(@@loop)
-#     c.request('GET', uri.path, query: { user_id: @id })
+  def on_request_complete
+    super
+  end
 
-#     unless @@runned
-#       Thread.new { @@loop.run }
-#       @@runned = true
-#     end
-#   end
-# end
+  def on_close
+    super
+    @reconnect_proc.call
+  end
+
+  def on_error
+    super
+  end
+end
+
+class CometClient
+  @@loop = Coolio::Loop.new
+  @@runned = false
+
+  def initialize(url)
+    uri = URI(url)
+
+    @reconnect = true
+
+    connect = lambda {
+      if @reconnect
+        @c = MyHttpClient.connect(uri.host, uri.port, connect).attach(@@loop)
+        @c.request('GET', uri.path)
+      end
+    }
+    connect.call
+
+    unless @@runned
+      Thread.new { @@loop.run }
+      @@runned = true
+    end
+  end
+
+  def close
+    @reconnect = false
+    @c.close
+  end
+end
 
 
