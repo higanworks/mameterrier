@@ -82,10 +82,6 @@ end
 require "coolio"
 
 class MyHttpClient < Coolio::HttpClient
-  def self.send(url, message, clients, send_client=nil)
-    Net::HTTP.post_form(URI(url), { clin: clients, msg: message })
-  end
-  
   def initialize(socket, reconnect_proc)
     super(socket)
     @socket = socket
@@ -112,6 +108,10 @@ end
 class CometClient
   @@loop = Coolio::Loop.new
   @@runned = false
+
+  def self.send(url, message, clients, send_client=nil)
+    Net::HTTP.post_form(URI(url), { clin: clients, msg: message })
+  end
 
   def initialize(url)
     uri = URI(url)
