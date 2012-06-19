@@ -121,10 +121,12 @@ class MyWebSocket < Cool.io::TCPSocket
   end
 
   def on_close
+    super
     p "close"
   end
 
   def on_connect_failed
+    super
     p "connection error"
   end
 end
@@ -165,10 +167,29 @@ end
 class WebSocketClient
   @@event_loop = Cool.io::Loop.new
   @@runned = false
+  @@queue = []
+  @@clients = []
+
+  # should use a method that like a nextTick in node.js
+  @@watcher = Coolio::TimerWatcher.new(0.00001, true)
+  @@watcher.on_timer {
+    if url = @@queue.shift
+      uri = URI(url)
+      base = MyWebSocket.connect(uri.host, uri.port, url)
+      base.attach(@@event_loop)
+
+      @@clients << base
+    end
+  }
+
+  @@watcher.attach(@@event_loop)
+  
+  Thread.new { @@event_loop.run }
 
   class << self
     def send(url, message, clients, send_client=nil)
-      send_client.send("#{clients.to_i},#{message}")
+      p message, clients
+      @@clients.first.send("#{clients.to_i},#{message}") if @@clients.first
     end
   end
 
@@ -177,25 +198,7 @@ class WebSocketClient
   end
   
   def initialize(url)
-    uri = URI(url)
-
-    @base = MyWebSocket.connect(uri.host, uri.port, url)
-    @base.attach(@@event_loop)
-
-    unless @@runned
-      Thread.new { @@event_loop.run }
-      @@runned = true 
-    end
-    
-    # @base = MyWebSocket.new(uri.host, uri.port)
-    # @base.wait_readable
-    # @base = WebSocket.new(url)
-    # @continue = true
-    # Thread.new do
-    #   while @continue && (line = @base.receive)
-    #     method(:on_read).call(line)
-    #   end
-    # end
+    @@queue.push(url)
   end
 
   def send(message)
@@ -203,8 +206,9 @@ class WebSocketClient
   end
 
   def close
-    @continue = false
-    @base.close
+    while socket = @@clients.shift
+      socket.close
+    end
   end
 end
 
